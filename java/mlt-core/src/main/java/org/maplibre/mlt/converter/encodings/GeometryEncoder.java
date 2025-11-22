@@ -52,13 +52,14 @@ public class GeometryEncoder {
     var numTriangles = new ArrayList<Integer>();
     var indexBuffer = new ArrayList<Integer>();
     var vertexBuffer = new ArrayList<Vertex>();
+    var flattenedGeometries = flattenGeometries(geometries);
     var containsPolygon =
-        geometries.stream()
+        flattenedGeometries.stream()
             .anyMatch(
                 g ->
                     g.getGeometryType().equals(Geometry.TYPENAME_MULTIPOLYGON)
                         || g.getGeometryType().equals(Geometry.TYPENAME_POLYGON));
-    for (var geometry : geometries) {
+    for (var geometry : flattenedGeometries) {
       var geometryType = geometry.getGeometryType();
       switch (geometryType) {
         case Geometry.TYPENAME_POINT:
@@ -531,13 +532,14 @@ public class GeometryEncoder {
     var numParts = new ArrayList<Integer>();
     var numRings = new ArrayList<Integer>();
     var vertexBuffer = new ArrayList<Vertex>();
+    var flattenedGeometries = flattenGeometries(geometries);
     var containsPolygon =
-        geometries.stream()
+        flattenedGeometries.stream()
             .anyMatch(
                 g ->
                     g.getGeometryType().equals(Geometry.TYPENAME_MULTIPOLYGON)
                         || g.getGeometryType().equals(Geometry.TYPENAME_POLYGON));
-    for (var geometry : geometries) {
+    for (var geometry : flattenedGeometries) {
       var geometryType = geometry.getGeometryType();
       switch (geometryType) {
         case Geometry.TYPENAME_POINT:
@@ -1012,5 +1014,26 @@ public class GeometryEncoder {
       streamObserver.observeStream("geom_vertex_buffer", rawValues, encodedMetadata, encodedValues);
     }
     return ArrayUtils.addAll(encodedMetadata, encodedValues);
+  }
+
+  private static List<Geometry> flattenGeometries(List<Geometry> geometries) {
+    List<Geometry> out = new ArrayList<>(geometries.size());
+    for (Geometry geometry : geometries) {
+      flattenGeometry(geometry, out);
+    }
+    return out;
+  }
+
+  private static void flattenGeometry(Geometry geometry, List<Geometry> out) {
+    var geometryType = geometry.getGeometryType();
+
+    if (geometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION) {
+      out.add(geometry);
+      return;
+    }
+
+    for (int i = 0; i < geometry.getNumGeometries(); i++) {
+      flattenGeometry(geometry.getGeometryN(i), out);
+    }
   }
 }
