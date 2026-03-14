@@ -94,8 +94,9 @@ public class GeometryEncoder {
     final var numTriangles = new ArrayList<Integer>();
     final var indexBuffer = new ArrayList<Integer>();
     final var vertexBuffer = new ArrayList<Vertex>();
-    final var containsPolygon = containsPolygon(geometries);
-    for (var geometry : geometries) {
+    final var flattenedGeometries = flattenGeometries(geometries);
+    final var containsPolygon = containsPolygon(flattenedGeometries);
+    for (var geometry : flattenedGeometries) {
       switch (geometry) {
         case Point point -> {
           geometryTypes.add(GeometryType.POINT.ordinal());
@@ -507,8 +508,9 @@ public class GeometryEncoder {
     var numParts = new ArrayList<Integer>();
     var numRings = new ArrayList<Integer>();
     var vertexBuffer = new ArrayList<Vertex>();
-    final var containsPolygon = containsPolygon(geometries);
-    for (var geometry : geometries) {
+    final var flattenedGeometries = flattenGeometries(geometries);
+    final var containsPolygon = containsPolygon(flattenedGeometries);
+    for (var geometry : flattenedGeometries) {
       switch (geometry) {
         case Point point -> {
           geometryTypes.add(GeometryType.POINT.ordinal());
@@ -900,5 +902,29 @@ public class GeometryEncoder {
 
     result.add(encodedValues);
     return result;
+  }
+
+  private static List<Geometry> flattenGeometries(List<Geometry> geometries) {
+    var out = new ArrayList<Geometry>(geometries.size());
+    for (Geometry geometry : geometries) {
+      flattenGeometry(geometry, out);
+    }
+    return out;
+  }
+
+  private static void flattenGeometry(Geometry geometry, ArrayList<Geometry> out) {
+    var geometryType = geometry.getGeometryType();
+
+    if (geometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION) {
+      out.add(geometry);
+      return;
+    }
+
+    var geometryCount = geometry.getNumGeometries();
+    out.ensureCapacity(out.size() + geometryCount - 1);
+
+    for (int i = 0; i < geometryCount; i++) {
+      flattenGeometry(geometry.getGeometryN(i), out);
+    }
   }
 }
